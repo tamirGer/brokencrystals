@@ -1,9 +1,18 @@
-import { Controller, Get, Logger, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Header,
+  Logger,
+  UseGuards,
+  Headers,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import {
   ApiOperation,
   ApiOkResponse,
   ApiTags,
   ApiForbiddenResponse,
+  ApiInternalServerErrorResponse,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../auth/auth.guard';
 import { JwtProcessorType } from '../auth/auth.service';
@@ -12,9 +21,10 @@ import { ProductDto } from './api/ProductDto';
 import { ProductsService } from './products.service';
 import { Product } from '../model/product.entity';
 import {
-  SWAGGER_DESC_GET_LATEST_PRODUCTS,
-  SWAGGER_DESC_GET_PRODUCTS,
-} from './products.controller.swagger.desc';
+  API_DESC_GET_LATEST_PRODUCTS,
+  API_DESC_GET_PRODUCTS,
+  API_DESC_GET_VIEW_PRODUCT,
+} from './products.controller.api.desc';
 
 @Controller('/api/products')
 @ApiTags('Products controller')
@@ -27,7 +37,7 @@ export class ProductsController {
   @UseGuards(AuthGuard)
   @JwtType(JwtProcessorType.RSA)
   @ApiOperation({
-    description: SWAGGER_DESC_GET_PRODUCTS,
+    description: API_DESC_GET_PRODUCTS,
   })
   @ApiOkResponse({
     type: ProductDto,
@@ -51,7 +61,7 @@ export class ProductsController {
 
   @Get('latest')
   @ApiOperation({
-    description: SWAGGER_DESC_GET_LATEST_PRODUCTS,
+    description: API_DESC_GET_LATEST_PRODUCTS,
   })
   @ApiOkResponse({
     type: ProductDto,
@@ -61,5 +71,33 @@ export class ProductsController {
     this.logger.debug('Get latest products.');
     const products = await this.productsService.findLatest(3);
     return products.map((p: Product) => new ProductDto(p));
+  }
+
+  @Get('views')
+  @ApiOperation({
+    description: API_DESC_GET_VIEW_PRODUCT,
+  })
+  @ApiOkResponse()
+  @ApiInternalServerErrorResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        error: { type: 'string' },
+        location: { type: 'string' },
+      },
+    },
+  })
+  async viewProduct(
+    @Headers('x-product-name') productName: string,
+  ): Promise<void> {
+    try {
+      const query = `UPDATE product SET views_count = views_count + 1 WHERE name = '${productName}'`;
+      return await this.productsService.updateProduct(query);
+    } catch (err) {
+      throw new InternalServerErrorException({
+        error: err.message,
+        location: __filename,
+      });
+    }
   }
 }
