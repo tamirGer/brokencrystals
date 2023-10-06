@@ -1,0 +1,6 @@
+ingress:
+  url: k3s.brokencrystals.nexploit.app
+  cert: ""
+  authlevel: "."
+images: 
+  main: experimental
